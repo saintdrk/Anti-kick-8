@@ -1,0 +1,66 @@
+-- Services
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local StarterGui = game:GetService("StarterGui")
+local LocalPlayer = Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
+
+-- TikTok name
+local tikTokUsername = "saint_drksbd"
+
+-- Utility logging
+local function log(msg)
+    rconsoleprint("[AntiKick Script] " .. msg .. "\n")
+end
+
+-- 1. Anti-Kick (Basic - LocalPlayer only)
+log("Setting up basic anti-kick...")
+LocalPlayer.Kick = function()
+    log("Kick attempt blocked (LocalPlayer.Kick)")
+end
+
+-- 2. Notification
+log("Sending notification...")
+pcall(function()
+    StarterGui:SetCore("SendNotification", {
+        Title = "Follow Me!",
+        Text = "Follow me on TikTok!",
+        Duration = 5
+    })
+end)
+
+-- 3. Clipboard Copy
+log("Copying username to clipboard...")
+pcall(function()
+    setclipboard(tikTokUsername)
+end)
+
+-- 4. Auto-Rejoin on Kick Attempt (via RemoteEvent detection — limited)
+log("Setting up rejoin backup...")
+local function rejoinGame()
+    log("Attempting rejoin...")
+    local placeId = game.PlaceId
+    local jobId = game.JobId
+    wait(1)
+    TeleportService:TeleportToPlaceInstance(placeId, jobId, LocalPlayer)
+end
+
+-- 5. Remote Kick Event Block (partial / basic)
+log("Checking for suspicious remotes...")
+for _, v in ipairs(getgc(true)) do
+    if typeof(v) == "function" and islclosure(v) and getfenv(v).script then
+        local constants = getconstants(v)
+        for _, c in pairs(constants) do
+            if type(c) == "string" and string.lower(c):find("kick") then
+                log("Found possible remote kick function. Hooking it...")
+                hookfunction(v, function(...)
+                    log("Blocked a suspicious kick function.")
+                    rejoinGame()
+                    return nil
+                end)
+            end
+        end
+    end
+end
+
+log("Anti-kick script fully loaded.")
