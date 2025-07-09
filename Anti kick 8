@@ -1,66 +1,52 @@
--- Services
-local Players = game:GetService("Players")
-local TeleportService = game:GetService("TeleportService")
-local StarterGui = game:GetService("StarterGui")
-local LocalPlayer = Players.LocalPlayer
-local HttpService = game:GetService("HttpService")
+-- Anti-Kick Script with Notification (Client-side)
+-- Compatible with Delta, Fluxus, Hydrogen, etc.
 
--- TikTok name
-local tikTokUsername = "saint_drksbd"
-
--- Utility logging
-local function log(msg)
-    rconsoleprint("[AntiKick Script] " .. msg .. "\n")
-end
-
--- 1. Anti-Kick (Basic - LocalPlayer only)
-log("Setting up basic anti-kick...")
-LocalPlayer.Kick = function()
-    log("Kick attempt blocked (LocalPlayer.Kick)")
-end
-
--- 2. Notification
-log("Sending notification...")
+-- Notify the user when the script is loaded
 pcall(function()
-    StarterGui:SetCore("SendNotification", {
-        Title = "Follow Me!",
-        Text = "Follow me on TikTok!",
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Anti-Kick",
+        Text = "Script loaded successfully!",
         Duration = 5
     })
 end)
 
--- 3. Clipboard Copy
-log("Copying username to clipboard...")
-pcall(function()
-    setclipboard(tikTokUsername)
+-- Hook the Kick function
+local mt = getrawmetatable(game)
+setreadonly(mt, false)
+
+local oldNamecall = mt.__namecall
+
+mt.__namecall = newcclosure(function(self, ...)
+    local args = {...}
+    local method = getnamecallmethod()
+
+    -- Block Kick attempts
+    if method == "Kick" and self == game.Players.LocalPlayer then
+        warn("[Anti-Kick] Kick attempt blocked.")
+        pcall(function()
+            game.StarterGui:SetCore("SendNotification", {
+                Title = "Anti-Kick",
+                Text = "Blocked a kick attempt!",
+                Duration = 4
+            })
+        end)
+        return
+    end
+
+    return oldNamecall(self, unpack(args))
 end)
 
--- 4. Auto-Rejoin on Kick Attempt (via RemoteEvent detection — limited)
-log("Setting up rejoin backup...")
-local function rejoinGame()
-    log("Attempting rejoin...")
-    local placeId = game.PlaceId
-    local jobId = game.JobId
-    wait(1)
-    TeleportService:TeleportToPlaceInstance(placeId, jobId, LocalPlayer)
+-- Block direct Kick calls too
+local lp = game:GetService("Players").LocalPlayer
+lp.Kick = function(...)
+    warn("[Anti-Kick] Direct Kick call blocked.")
+    pcall(function()
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Anti-Kick",
+            Text = "Blocked a direct kick call!",
+            Duration = 4
+        })
+    end)
 end
 
--- 5. Remote Kick Event Block (partial / basic)
-log("Checking for suspicious remotes...")
-for _, v in ipairs(getgc(true)) do
-    if typeof(v) == "function" and islclosure(v) and getfenv(v).script then
-        local constants = getconstants(v)
-        for _, c in pairs(constants) do
-            if type(c) == "string" and string.lower(c):find("kick") then
-                log("Found possible remote kick function. Hooking it...")
-                hookfunction(v, function(...)
-                    log("Blocked a suspicious kick function.")
-                    rejoinGame()
-                    return nil
-                end)
-            end
-        end
-    end
-end
-
-log("Anti-kick script fully loaded.")
+print("[Anti-Kick] Script loaded and running.")
